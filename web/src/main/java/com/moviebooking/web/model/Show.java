@@ -1,29 +1,31 @@
 package com.moviebooking.web.model;
 
+import java.util.Date;
+
 import javax.persistence.Entity;
-import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.OneToOne;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import lombok.Data;
 
 @Entity
 @Data
-public class Seat {
+public class Show {
 
     @Id
     private int id;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @OneToOne
+    @JoinColumn(name = "movie_id")
+    private Movie movie;
+
+    @OneToOne
     @JoinColumn(name = "movie_hall_id")
-    @JsonIgnore
     private MovieHall movieHall;
 
-    private int row;
+    private Date startTime;
 
-    private int number;
+    private Date endTime;
 
 }

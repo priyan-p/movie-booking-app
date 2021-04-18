@@ -3,7 +3,10 @@ package com.moviebooking.web.model;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 
+import lombok.Data;
+
 @Entity
+@Data
 public class Movie {
 
     @Id
@@ -14,37 +17,5 @@ public class Movie {
     private int runningTimeHour;
 
     private String language;
-
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public int getRunningTimeHour() {
-        return runningTimeHour;
-    }
-
-    public void setRunningTimeHour(int runningTimeHour) {
-        this.runningTimeHour = runningTimeHour;
-    }
-
-    public String getLanguage() {
-        return language;
-    }
-
-    public void setLanguage(String language) {
-        this.language = language;
-    }
 
 }

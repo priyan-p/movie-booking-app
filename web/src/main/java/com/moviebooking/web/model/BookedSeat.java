@@ -1,0 +1,43 @@
+package com.moviebooking.web.model;
+
+import java.util.Date;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.OneToOne;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class BookedSeat {
+
+    public BookedSeat(User user, ShowSeat showSeat) {
+        this.user = user;
+        this.showSeat = showSeat;
+    }
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.TABLE)
+    private int id;
+
+    @OneToOne
+    @JoinColumn(name = "user_id")
+    private User user;
+
+    @OneToOne
+    @JoinColumn(name = "show_seat_id")
+    private ShowSeat showSeat;
+
+    @Column(insertable = false, updatable = false)
+    private Date bookedTime;
+
+}
