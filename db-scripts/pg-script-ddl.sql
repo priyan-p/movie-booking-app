@@ -1,3 +1,18 @@
+-- movie_booking.booking_request definition
+
+-- Drop table
+
+-- DROP TABLE movie_booking.booking_request;
+
+CREATE TABLE movie_booking.booking_request (
+	correlation_id uuid NOT NULL,
+	request_time timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	processed bool NOT NULL DEFAULT false,
+	"data" varchar NULL,
+	CONSTRAINT request_log_pk PRIMARY KEY (correlation_id)
+);
+
+
 -- movie_booking.movie definition
 
 -- Drop table
@@ -110,7 +125,6 @@ CREATE TABLE movie_booking.blocked_seat (
 	user_id int8 NOT NULL,
 	show_seat_id int8 NOT NULL,
 	blocked_time timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	CONSTRAINT reservation_pk PRIMARY KEY (id),
 	CONSTRAINT unq_blocked_seats UNIQUE (user_id, show_seat_id),
 	CONSTRAINT fk_blocked_seats_seat FOREIGN KEY (show_seat_id) REFERENCES movie_booking.show_seat(id),
 	CONSTRAINT fk_blocked_seats_user FOREIGN KEY (user_id) REFERENCES movie_booking."user"(id)
@@ -134,21 +148,6 @@ CREATE TABLE movie_booking.booked_seat (
 	CONSTRAINT reserved_seats_fk FOREIGN KEY (user_id) REFERENCES movie_booking."user"(id)
 );
 
--- movie_booking.seat_availability source
-
-CREATE OR REPLACE VIEW movie_booking.seat_availability
-AS SELECT s.id,
-    s.show_id,
-    s.price,
-    s.seat_id,
-        CASE
-            WHEN bl.id IS NOT NULL OR bk.id IS NOT NULL THEN 'false'::text
-            ELSE 'true'::text
-        END AS available
-   FROM movie_booking.show_seat s
-     LEFT JOIN movie_booking.blocked_seat bl ON bl.show_seat_id = s.id
-     LEFT JOIN movie_booking.booked_seat bk ON bk.show_seat_id = s.id;
-
 -- movie_booking.remove_timedout_records() source
 
 CREATE OR REPLACE FUNCTION movie_booking.remove_timedout_records()
@@ -159,5 +158,48 @@ AS $function$
 		DELETE FROM movie_booking.blocked_seat WHERE blocked_time < now() - INTERVAL '2 minutes';
 		return 1;
 	END;
+$function$
+;
+
+-- movie_booking.validate_concurrent_requests() source 
+
+CREATE OR REPLACE FUNCTION movie_booking.validate_concurrent_requests(corr_id character varying)
+ RETURNS boolean
+ LANGUAGE plpgsql
+AS $function$
+begin
+	 return(with concurrent_requests as(
+		-- select all requests reached at same time that are not processed
+		select br2.correlation_id, br2.data::jsonb, br2.request_time 
+		from movie_booking.booking_request br2
+		where br2.request_time = (
+				-- select current request time
+				select br.request_time 
+				from movie_booking.booking_request br 
+				where br.correlation_id::varchar = corr_id
+			)
+		and br2.processed = false
+	),
+	unnested_seats as (
+		-- unnest seats
+		select cr.correlation_id , jsonb_array_elements(cr.data->'showSeatIds')::int8 as "showseat" 
+		from concurrent_requests cr
+	),
+	corr_id_having_same_seats as(
+		-- select all correlation_ids having same show seats
+		select correlation_id 
+		from unnested_seats us where us.showSeat in (
+			-- select showseats of current correlation id 
+			select us2.showseat
+			from unnested_seats us2
+			where us2.correlation_id::varchar = corr_id
+		)	
+	)
+	select (select cr.correlation_id
+		from corr_id_having_same_seats chs 
+		inner join concurrent_requests cr on cr.correlation_id = chs.correlation_id
+		order by  jsonb_array_length(cr.data->'showSeatIds') desc 
+		limit 1)::varchar = corr_id);
+end;
 $function$
 ;

@@ -26,7 +26,7 @@ public class BookedSeat {
     }
 
     @Id
-    @GeneratedValue(strategy = GenerationType.TABLE)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private int id;
 
     @OneToOne

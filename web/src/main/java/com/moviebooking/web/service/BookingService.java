@@ -1,32 +1,24 @@
 package com.moviebooking.web.service;
 
-import java.util.Date;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.moviebooking.web.model.BlockedSeat;
 import com.moviebooking.web.model.BookedSeat;
+import com.moviebooking.web.model.Booking;
 import com.moviebooking.web.model.ShowSeat;
 import com.moviebooking.web.model.User;
 import com.moviebooking.web.repository.BlockedSeatRepository;
 import com.moviebooking.web.repository.BookedSeatRepository;
-import com.moviebooking.web.repository.SeatAvailabilityRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class BookingService {
-
-    @Value("${app.booking.maxSeatsAllowed}")
-    private int maxSeatsPerUser;
-
-    @Autowired
-    private SeatAvailabilityRepository seatAvailabilityRepository;
 
     @Autowired
     private BlockedSeatRepository blockedSeatRepository;
@@ -37,18 +29,36 @@ public class BookingService {
     @Autowired
     private PaymentService paymentService;
 
-    @Transactional(propagation = Propagation.REQUIRED)
-    public void bookSeats(Set<Integer> showSeatIds, int userId) {
-        validate(showSeatIds, userId);
-        List<BlockedSeat> blockedSeats = showSeatIds.stream().map(id -> {
-            BlockedSeat blockedSeat = new BlockedSeat(new User(userId), new ShowSeat(id));
-            return blockedSeat;
-        }).collect(Collectors.toList());
-        blockedSeatRepository.saveAll(blockedSeats);
-        handlePayment(blockedSeats);
+    /**
+     * To book the seats
+     * 
+     * @param bookingRequest
+     * @return success or failed string
+     */
+    @Transactional(propagation = Propagation.REQUIRED, isolation = Isolation.SERIALIZABLE)
+    public String bookSeats(Booking bookingRequest) {
+        try {
+            int userId = 0;
+            List<BlockedSeat> blockedSeats = bookingRequest.getShowSeatIds().stream().map(id -> {
+                BlockedSeat blockedSeat = new BlockedSeat(new User(userId), new ShowSeat(id));
+                return blockedSeat;
+            }).collect(Collectors.toList());
+            blockedSeatRepository.saveAll(blockedSeats);
+            handlePayment(blockedSeats);
+            return "ok";
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "seat booking operation failed";
+        }
     }
 
-    private void handlePayment(List<BlockedSeat> blockedSeats) {
+    /**
+     * To handle the payment
+     * 
+     * @param blockedSeats
+     * @return sucess or error string
+     */
+    private String handlePayment(List<BlockedSeat> blockedSeats) {
         double amount = blockedSeats.stream().mapToDouble(s -> s.getShowSeat().getPrice()).sum();
         try {
             boolean paid = paymentService.pay(amount);
@@ -57,19 +67,12 @@ public class BookingService {
                     return new BookedSeat(b.getUser(), b.getShowSeat());
                 }).collect(Collectors.toList()));
             }
+            return "ok";
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "payment failed";
         } finally {
             blockedSeatRepository.deleteAll(blockedSeats);
-        }
-    }
-
-    private void validate(Set<Integer> showSeatIds, int userId) {
-        if (showSeatIds.size() > maxSeatsPerUser) {
-            throw new RuntimeException("Maximum seats allowed is " + maxSeatsPerUser);
-        }
-
-        int count = seatAvailabilityRepository.countByIdIn(showSeatIds);
-        if (count != showSeatIds.size()) {
-            throw new RuntimeException("Requested seats not available");
         }
     }
 

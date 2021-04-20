@@ -17,6 +17,7 @@ public class TimeoutBlockedSeatsRunner {
         try {
             blockedSeatRepository.releaseTimedoutBlockedSeats();
         } catch (Exception e) {
+            // FIXME: log here and identify failure possible
             e.printStackTrace();
         }
     }

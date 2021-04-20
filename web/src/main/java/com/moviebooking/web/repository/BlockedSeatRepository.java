@@ -10,4 +10,6 @@ public interface BlockedSeatRepository extends CrudRepository<BlockedSeat, Integ
     @Query(nativeQuery = true, value = "select movie_booking.remove_timedout_records()")
     void releaseTimedoutBlockedSeats();
 
+    int countByUserId(int userId);
+
 }

@@ -22,7 +22,7 @@ public class BlockedSeat {
     }
 
     @Id
-    @GeneratedValue(strategy = GenerationType.TABLE)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private int id;
 
     @OneToOne
