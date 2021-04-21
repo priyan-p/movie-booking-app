@@ -8,14 +8,16 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moviebooking.web.model.Booking;
 import com.moviebooking.web.model.BookingRequest;
+import com.moviebooking.web.model.ErrorResponse;
 import com.moviebooking.web.model.ShowSeat;
 import com.moviebooking.web.model.Ticket;
 import com.moviebooking.web.repository.BlockedSeatRepository;
 import com.moviebooking.web.repository.BookedSeatRepository;
 import com.moviebooking.web.repository.BookingRequestRepository;
-import com.moviebooking.web.repository.SeatAvailabilityRepository;
 import com.moviebooking.web.repository.ShowSeatRepository;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +32,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class BookingRequestService {
 
+    private static final Logger logger = LoggerFactory.getLogger(BookingRequestService.class);
+
     @Value("${app.booking.mq.routing.key}")
     private String routingKey;
 
@@ -41,9 +45,6 @@ public class BookingRequestService {
 
     @Autowired
     private BookingRequestRepository bookingRequestRepository;
-
-    @Autowired
-    private SeatAvailabilityRepository seatAvailabilityRepository;
 
     @Autowired
     private BlockedSeatRepository blockedSeatRepository;
@@ -69,7 +70,7 @@ public class BookingRequestService {
      */
     public BookingRequest addRequest(Booking booking) throws JsonProcessingException {
         BookingRequest requestMessage = new BookingRequest();
-        UUID correlationId = UUID.randomUUID();
+        String correlationId = UUID.randomUUID().toString();
         requestMessage.setCorrelationId(correlationId);
         requestMessage.setData(objectMapper.writeValueAsString(booking));
         return bookingRequestRepository.save(requestMessage);
@@ -83,11 +84,11 @@ public class BookingRequestService {
      */
     @Transactional(isolation = Isolation.SERIALIZABLE)
     public boolean validateConcurrentRequests(String correlationId) {
-        return bookingRequestRepository.validateConcurrentRequests(correlationId);
+        return bookingRequestRepository.existsByCorrelationId(correlationId);
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE)
-    public void updateProcessStatus(UUID correlationId) {
+    public void updateProcessStatus(String correlationId) {
         bookingRequestRepository.findById(correlationId).ifPresent(b -> {
             b.setProcessed(true);
             bookingRequestRepository.save(b);
@@ -104,13 +105,13 @@ public class BookingRequestService {
         int userId = 0;
         String response = validate(booking.getShowSeatIds(), userId);
         if (response != null) {
-            return ResponseEntity.badRequest().body(response);
+            return ResponseEntity.badRequest().body(new ErrorResponse(response));
         }
         response = template.convertSendAndReceiveAsType(directExchange.getName(), routingKey, booking,
                 new ParameterizedTypeReference<String>() {
                 });
         return "ok".equals(response) ? ResponseEntity.ok().body(new Ticket(booking.getShowSeatIds()))
-                : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+                : ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ErrorResponse(response));
     }
 
     /**
@@ -121,32 +122,32 @@ public class BookingRequestService {
      * @return error response or null if not passed
      */
     private String validate(Set<Integer> showSeatIds, int userId) {
-        if (showSeatIds.size() > maxSeatsPerUser) {
-            return "Maximum seats allowed is " + maxSeatsPerUser;
-        }
+        try {
+            if (showSeatIds.size() > maxSeatsPerUser) {
+                return "Maximum seats allowed is " + maxSeatsPerUser;
+            }
 
-        List<ShowSeat> showSeatsSelected = (List<ShowSeat>) showSeatRepository.findAllById(showSeatIds);
-        boolean allSeatsBelongToSameShow = showSeatsSelected.stream().map(s -> s.getShow().getId()).distinct()
-                .count() == 1;
-        if (!allSeatsBelongToSameShow) {
-            return "Invalid seat selection";
-        }
+            List<ShowSeat> showSeatsSelected = (List<ShowSeat>) showSeatRepository.findAllById(showSeatIds);
+            boolean allSeatsBelongToSameShow = showSeatsSelected.stream().map(s -> s.getShow().getId()).distinct()
+                    .count() == 1;
+            if (!allSeatsBelongToSameShow) {
+                return "Invalid seat selection";
+            }
 
-        int showId = showSeatsSelected.get(0).getShow().getId();
-        List<ShowSeat> allShowSeats = showSeatRepository.findAllByShowId(showId);
+            if (blockedSeatRepository.countByUserId(userId) > 0) {
+                return "Duplicate session";
+            }
 
-        if (blockedSeatRepository.countByUserId(userId) > 0) {
-            return "Duplicate session";
-        }
+            int showId = showSeatsSelected.get(0).getShow().getId();
+            List<ShowSeat> allShowSeats = showSeatRepository.findAllByShowId(showId);
 
-        int prevBookedSeats = bookedSeatRepository.countByUserIdAndShowSeatIn(userId, allShowSeats);
-        if (prevBookedSeats + showSeatIds.size() > maxSeatsPerUser) {
-            return "Maximum seats allowed is " + maxSeatsPerUser;
-        }
-
-        int count = seatAvailabilityRepository.countByIdIn(showSeatIds);
-        if (count != showSeatIds.size()) {
-            return "Requested seats not available";
+            int prevBookedSeats = bookedSeatRepository.countByUserIdAndShowSeatIn(userId, allShowSeats);
+            if (prevBookedSeats + showSeatIds.size() > maxSeatsPerUser) {
+                return "Maximum seats allowed is " + maxSeatsPerUser;
+            }
+        } catch (Exception e) {
+            logger.error("Error validating request", e);
+            return "Server error";
         }
         return null;
     }

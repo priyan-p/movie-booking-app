@@ -1,14 +1,18 @@
+-- DROP SCHEMA movie_booking;
+
+CREATE SCHEMA IF NOT EXISTS movie_booking AUTHORIZATION postgres;
+
 -- movie_booking.booking_request definition
 
 -- Drop table
 
 -- DROP TABLE movie_booking.booking_request;
 
-CREATE TABLE movie_booking.booking_request (
-	correlation_id uuid NOT NULL,
-	request_time timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CREATE TABLE IF NOT EXISTS movie_booking.booking_request (
+	correlation_id varchar NOT NULL,
 	processed bool NOT NULL DEFAULT false,
-	"data" varchar NULL,
+	"data" varchar NOT NULL,
+	request_time_millisec int8 NOT NULL DEFAULT (date_part('epoch'::text, now()) * 1000::double precision),
 	CONSTRAINT request_log_pk PRIMARY KEY (correlation_id)
 );
 
@@ -19,7 +23,7 @@ CREATE TABLE movie_booking.booking_request (
 
 -- DROP TABLE movie_booking.movie;
 
-CREATE TABLE movie_booking.movie (
+CREATE TABLE IF NOT EXISTS movie_booking.movie (
 	id int8 NOT NULL,
 	"name" varchar NOT NULL,
 	running_time_hour float4 NOT NULL,
@@ -35,7 +39,7 @@ CREATE TABLE movie_booking.movie (
 
 -- DROP TABLE movie_booking.movie_hall;
 
-CREATE TABLE movie_booking.movie_hall (
+CREATE TABLE IF NOT EXISTS movie_booking.movie_hall (
 	id int8 NOT NULL,
 	"name" varchar NOT NULL,
 	address varchar NOT NULL,
@@ -50,7 +54,7 @@ CREATE TABLE movie_booking.movie_hall (
 
 -- DROP TABLE movie_booking."user";
 
-CREATE TABLE movie_booking."user" (
+CREATE TABLE IF NOT EXISTS movie_booking."user" (
 	id int8 NOT NULL,
 	first_name varchar NOT NULL,
 	last_name varchar NOT NULL,
@@ -67,7 +71,7 @@ CREATE TABLE movie_booking."user" (
 
 -- DROP TABLE movie_booking.seat;
 
-CREATE TABLE movie_booking.seat (
+CREATE TABLE IF NOT EXISTS movie_booking.seat (
 	id int8 NOT NULL,
 	"number" int4 NOT NULL,
 	movie_hall_id int8 NOT NULL,
@@ -83,7 +87,7 @@ CREATE TABLE movie_booking.seat (
 
 -- DROP TABLE movie_booking."show";
 
-CREATE TABLE movie_booking."show" (
+CREATE TABLE IF NOT EXISTS movie_booking."show" (
 	id int8 NOT NULL,
 	movie_id int8 NOT NULL,
 	movie_hall_id int8 NOT NULL,
@@ -102,7 +106,7 @@ CREATE TABLE movie_booking."show" (
 
 -- DROP TABLE movie_booking.show_seat;
 
-CREATE TABLE movie_booking.show_seat (
+CREATE TABLE IF NOT EXISTS movie_booking.show_seat (
 	id int8 NOT NULL,
 	show_id int8 NOT NULL,
 	price numeric(7,2) NOT NULL,
@@ -120,11 +124,12 @@ CREATE TABLE movie_booking.show_seat (
 
 -- DROP TABLE movie_booking.blocked_seat;
 
-CREATE TABLE movie_booking.blocked_seat (
+CREATE TABLE IF NOT EXISTS movie_booking.blocked_seat (
 	id int8 NOT NULL,
 	user_id int8 NOT NULL,
 	show_seat_id int8 NOT NULL,
 	blocked_time timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CONSTRAINT blocked_seat_pk PRIMARY KEY (id),
 	CONSTRAINT unq_blocked_seats UNIQUE (user_id, show_seat_id),
 	CONSTRAINT fk_blocked_seats_seat FOREIGN KEY (show_seat_id) REFERENCES movie_booking.show_seat(id),
 	CONSTRAINT fk_blocked_seats_user FOREIGN KEY (user_id) REFERENCES movie_booking."user"(id)
@@ -137,7 +142,7 @@ CREATE TABLE movie_booking.blocked_seat (
 
 -- DROP TABLE movie_booking.booked_seat;
 
-CREATE TABLE movie_booking.booked_seat (
+CREATE TABLE IF NOT EXISTS movie_booking.booked_seat (
 	id int8 NOT NULL,
 	user_id int8 NOT NULL,
 	show_seat_id int8 NOT NULL,
@@ -148,33 +153,56 @@ CREATE TABLE movie_booking.booked_seat (
 	CONSTRAINT reserved_seats_fk FOREIGN KEY (user_id) REFERENCES movie_booking."user"(id)
 );
 
--- movie_booking.remove_timedout_records() source
+-- movie_booking.seat_availability source
+
+CREATE OR REPLACE VIEW movie_booking.seat_availability
+AS SELECT s.id,
+    s.show_id,
+    s.price,
+    s.seat_id,
+        CASE
+            WHEN bl.id IS NOT NULL OR bk.id IS NOT NULL THEN 'false'::text
+            ELSE 'true'::text
+        END AS available
+   FROM movie_booking.show_seat s
+     LEFT JOIN movie_booking.blocked_seat bl ON bl.show_seat_id = s.id
+     LEFT JOIN movie_booking.booked_seat bk ON bk.show_seat_id = s.id;
+    
+-- movie_booking.hibernate_sequence definition
+
+-- DROP SEQUENCE movie_booking.hibernate_sequence;
+
+CREATE SEQUENCE IF NOT EXISTS movie_booking.hibernate_sequence
+	INCREMENT BY 1
+	MINVALUE 1
+	MAXVALUE 9223372036854775807
+	START 1
+	CACHE 1
+	NO CYCLE;    
+
+-- Remove timedout records
 
 CREATE OR REPLACE FUNCTION movie_booking.remove_timedout_records()
-	RETURNS int4
-	LANGUAGE plpgsql
-AS $function$
-	BEGIN
-		DELETE FROM movie_booking.blocked_seat WHERE blocked_time < now() - INTERVAL '2 minutes';
+ RETURNS integer
+AS 'BEGIN
+		DELETE FROM movie_booking.blocked_seat WHERE blocked_time < now() - INTERVAL ''2 minutes'';
 		return 1;
-	END;
-$function$
-;
+	END;'
+LANGUAGE plpgsql;
 
--- movie_booking.validate_concurrent_requests() source 
+-- Valadte requests
 
 CREATE OR REPLACE FUNCTION movie_booking.validate_concurrent_requests(corr_id character varying)
  RETURNS boolean
- LANGUAGE plpgsql
-AS $function$
+AS '
 begin
 	 return(with concurrent_requests as(
 		-- select all requests reached at same time that are not processed
-		select br2.correlation_id, br2.data::jsonb, br2.request_time 
+		select br2.correlation_id, br2.data::jsonb, br2.request_time_millisec 
 		from movie_booking.booking_request br2
-		where br2.request_time = (
+		where br2.request_time_millisec = (
 				-- select current request time
-				select br.request_time 
+				select br.request_time_millisec 
 				from movie_booking.booking_request br 
 				where br.correlation_id::varchar = corr_id
 			)
@@ -182,7 +210,7 @@ begin
 	),
 	unnested_seats as (
 		-- unnest seats
-		select cr.correlation_id , jsonb_array_elements(cr.data->'showSeatIds')::int8 as "showseat" 
+		select cr.correlation_id , jsonb_array_elements(cr.data->''showSeatIds'')::int8 as "showseat" 
 		from concurrent_requests cr
 	),
 	corr_id_having_same_seats as(
@@ -198,8 +226,7 @@ begin
 	select (select cr.correlation_id
 		from corr_id_having_same_seats chs 
 		inner join concurrent_requests cr on cr.correlation_id = chs.correlation_id
-		order by  jsonb_array_length(cr.data->'showSeatIds') desc 
+		order by  jsonb_array_length(cr.data->''showSeatIds'') desc 
 		limit 1)::varchar = corr_id);
-end;
-$function$
-;
+end;'
+LANGUAGE plpgsql;

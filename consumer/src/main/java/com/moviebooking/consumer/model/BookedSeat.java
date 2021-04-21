@@ -1,4 +1,4 @@
-package com.moviebooking.web.model;
+package com.moviebooking.consumer.model;
 
 import java.util.Date;
 
@@ -16,9 +16,9 @@ import lombok.NoArgsConstructor;
 @Entity
 @Data
 @NoArgsConstructor
-public class BlockedSeat {
+public class BookedSeat {
 
-    public BlockedSeat(User user, ShowSeat showSeat) {
+    public BookedSeat(User user, ShowSeat showSeat) {
         this.user = user;
         this.showSeat = showSeat;
     }
@@ -36,6 +36,6 @@ public class BlockedSeat {
     private ShowSeat showSeat;
 
     @Column(insertable = false, updatable = false)
-    private Date blockedTime;
+    private Date bookedTime;
 
 }

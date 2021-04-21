@@ -1,4 +1,4 @@
-package com.moviebooking.web.model;
+package com.moviebooking.consumer.model;
 
 import java.util.Date;
 

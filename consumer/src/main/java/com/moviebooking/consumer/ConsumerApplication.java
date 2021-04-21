@@ -1,13 +1,13 @@
-package com.moviebooking.web;
+package com.moviebooking.consumer;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class WebApplication {
-	
+public class ConsumerApplication {
+
 	public static void main(String[] args) {
-		SpringApplication.run(WebApplication.class, args);
+		SpringApplication.run(ConsumerApplication.class, args);
 	}
 
 }

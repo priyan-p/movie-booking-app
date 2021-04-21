@@ -1,24 +1,27 @@
-package com.moviebooking.web.model;
+package com.moviebooking.consumer.model;
 
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.OneToOne;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Data
-public class SeatAvailability {
+@NoArgsConstructor
+public class ShowSeat {
+
+    public ShowSeat(int showSeatId) {
+        this.id = showSeatId;
+    }
 
     @Id
     private int id;
 
     @OneToOne
     @JoinColumn(name = "show_id")
-    @JsonIgnore
     private Show show;
 
     @OneToOne
@@ -26,7 +29,5 @@ public class SeatAvailability {
     private Seat seat;
 
     private double price;
-
-    private boolean available;
 
 }

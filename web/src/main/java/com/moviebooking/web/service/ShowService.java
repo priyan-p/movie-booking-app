@@ -19,7 +19,11 @@ public class ShowService {
         return (List<Show>) showRepository.findAll();
     }
 
-    public Optional<Show> findById(int showId){
+    public List<Show> listAllShowsByMovieOrHall(String movieName, String movieHallName) {
+        return showRepository.findAllShowById(movieName, movieHallName);
+    }
+
+    public Optional<Show> findById(int showId) {
         return showRepository.findById(showId);
     }
 

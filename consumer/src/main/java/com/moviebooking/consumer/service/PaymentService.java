@@ -1,4 +1,4 @@
-package com.moviebooking.web.service;
+package com.moviebooking.consumer.service;
 
 import org.springframework.stereotype.Service;
 
