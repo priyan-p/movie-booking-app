@@ -15,6 +15,11 @@ public class User {
         this.id = userId;
     }
 
+    public User(int userId, String firstName) {
+        this.id = userId;
+        this.firstName = firstName;
+    }
+
     @Id
     private int id;
 

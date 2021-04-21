@@ -57,8 +57,8 @@ CREATE TABLE IF NOT EXISTS movie_booking.movie_hall (
 CREATE TABLE IF NOT EXISTS movie_booking."user" (
 	id int8 NOT NULL,
 	first_name varchar NOT NULL,
-	last_name varchar NOT NULL,
-	email varchar NOT NULL,
+	last_name varchar,
+	email varchar,
 	active_status bool NOT NULL,
 	CONSTRAINT user_pk PRIMARY KEY (id),
 	CONSTRAINT user_un UNIQUE (email)

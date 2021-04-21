@@ -11,6 +11,7 @@ import com.moviebooking.web.model.BookingRequest;
 import com.moviebooking.web.model.ErrorResponse;
 import com.moviebooking.web.model.ShowSeat;
 import com.moviebooking.web.model.Ticket;
+import com.moviebooking.web.model.User;
 import com.moviebooking.web.repository.BlockedSeatRepository;
 import com.moviebooking.web.repository.BookedSeatRepository;
 import com.moviebooking.web.repository.BookingRequestRepository;
@@ -61,6 +62,9 @@ public class BookingRequestService {
     @Autowired
     private DirectExchange directExchange;
 
+    @Autowired
+    private UserService userService;
+
     /**
      * To add the request to database for concurrency handling
      * 
@@ -102,8 +106,9 @@ public class BookingRequestService {
      * @return valid response to http client
      */
     public ResponseEntity<?> process(Booking booking) {
-        int userId = 0;
-        String response = validate(booking.getShowSeatIds(), userId);
+        User currentUser = userService.getCurrentUser();
+        booking.setUser(currentUser);
+        String response = validate(booking.getShowSeatIds(), currentUser.getId());
         if (response != null) {
             return ResponseEntity.badRequest().body(new ErrorResponse(response));
         }
@@ -122,6 +127,7 @@ public class BookingRequestService {
      * @return error response or null if not passed
      */
     private String validate(Set<Integer> showSeatIds, int userId) {
+        // FIXME: organise error desc
         try {
             if (showSeatIds.size() > maxSeatsPerUser) {
                 return "Maximum seats allowed is " + maxSeatsPerUser;

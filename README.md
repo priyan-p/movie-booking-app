@@ -50,19 +50,28 @@ Docker
 
 ## API Endpoints and Docs
 
-OpenApi doc http://localhost:8080/moviebooking/v3/api-docs
+OpenApi doc http://localhost:8080/v3/api-docs
 
-Swagger Ui http://localhost:8080/moviebooking/swagger-ui.html
+Swagger Ui http://localhost:8080/swagger-ui.html
 
 ## Securing API
 
-To enable TLS for web service APIs - enable ssl configurations in [application.properties](web/src/main/resources/application.properties)
+Few changed needed to enable security in [application.properties](web/src/main/resources/application.properties)
+
+### To enable TLS
 
     server.port=8443
     security.require-ssl=true
     server.ssl.key-store-password=*****
     server.ssl.key-store=keystore/keystore.jks
-    server.ssl.key-store-type=PKCS12
+    server.ssl.key-store-type=JKS
+
+### Oauth2 Configuration
+
+Populate client id and client secret from IDP
+
+    spring.security.oauth2.client.registration.github.client-id=<client-id>
+    spring.security.oauth2.client.registration.github.client-secret=<client-secret>
 
 ## Running Tests
 
