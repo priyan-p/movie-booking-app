@@ -54,6 +54,16 @@ OpenApi doc http://localhost:8080/moviebooking/v3/api-docs
 
 Swagger Ui http://localhost:8080/moviebooking/swagger-ui.html
 
+## Securing API
+
+To enable TLS for web service APIs - enable ssl configurations in [application.properties](web/src/main/resources/application.properties)
+
+    server.port=8443
+    security.require-ssl=true
+    server.ssl.key-store-password=*****
+    server.ssl.key-store=keystore/keystore.jks
+    server.ssl.key-store-type=PKCS12
+
 ## Running Tests
 
 The test data for the app is in available in [data.sql](web/src/main/resources/data.sql)
