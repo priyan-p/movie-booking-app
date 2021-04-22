@@ -50,8 +50,6 @@ Docker
 
 ## API Endpoints and Docs
 
-OpenApi doc http://localhost:8080/v3/api-docs
-
 Swagger Ui http://localhost:8080/swagger-ui.html
 
 ## Securing API
@@ -70,8 +68,8 @@ Few changed needed to enable security in [application.properties](web/src/main/r
 
 Populate client id and client secret from IDP
 
-    spring.security.oauth2.client.registration.github.client-id=<client-id>
-    spring.security.oauth2.client.registration.github.client-secret=<client-secret>
+    spring.security.oauth2.client.registration.github.client-id=${GITHUB_CLIENT_ID}
+    spring.security.oauth2.client.registration.github.client-secret=${GITHUB_CLIENT_SECRET}
 
 ## Running Tests
 
