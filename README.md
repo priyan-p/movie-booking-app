@@ -67,6 +67,11 @@ Populate client id and client secret from IDP
 
     sh run.sh
 
+If there is an starting Postgres in docker. It might be with permission creating the mount point for data folder. This can be fixed by giving access to the `/data/pg-data` directory or by pointing the data directory in [docker-compose.yaml](docker-compose.yaml) file.
+
+    volumes:
+        - '/data/pg-data:/var/lib/postgresql/data'
+
 ## API Endpoints and Docs
 
 Swagger Ui http://localhost:8080/swagger-ui.html
