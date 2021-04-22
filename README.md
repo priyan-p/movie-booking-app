@@ -4,7 +4,7 @@ A movie booking app to handle concurrent users booking tickets at same time.
 
 ## Stack
 
-* RDBMS - PostgreSQL 
+* Datastore - RDBMS(PostgreSQL)
 * Restful Web services - Spring Boot 
 * Messaging Queue - RabbitMQ
 
