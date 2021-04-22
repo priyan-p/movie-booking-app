@@ -17,7 +17,7 @@ A movie booking app to handle concurrent users booking tickets at same time.
 * Assuming there is admin APIs to add Movies, MovieHalls, Shows and Seats.
 * System does not handle partial ticket orders. Either it will book all tickets or reject it.
 * Payment is a separate service which can respond without any user interaction.
-* Same user cannot book tickets for a show from multiple sessions.
+* Same user cannot book tickets for a show from multiple sessions simultaneously.
 
 ## Database design
 
@@ -29,7 +29,7 @@ A movie booking app to handle concurrent users booking tickets at same time.
 ### For ticket booking API
 
 * The system inserts all the incoming web api requests to Postgres with current milliseconds as default column in a table. 
-* Then it calls a Postgres function `validate_concurrent_requests()` to prioritize user by number seats, if the requests are received at same time. The need for inserting the requests to Postgres is to handle the user priority across multiple instances of web service APIs.
+* Then it calls a Postgres function validate_concurrent_requests() to prioritize user by number of seats, if the requests are received at same time for the same seat. The need for inserting the requests to Postgres is to handle the user priority across multiple instances of web service APIs.
 * Then validates the requests and post it to the `RabbitMQ` to handle FCFS aross multiple instances of web APIs.
 * One of the consumer service instance from other end picks up the request and blocks the seats by inserting it to Postgres table `blocked_seat`.
 * Then the system will send a payment request to third party API.
@@ -40,9 +40,9 @@ A movie booking app to handle concurrent users booking tickets at same time.
 
 ### Pre-requisites
 
-Java 8 (minimum version)
-Maven 3.x
-Docker
+*Java 8 (minimum version)
+*Maven 3.x
+*Docker
 
 ## To secure the API
 
