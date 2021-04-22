@@ -44,15 +44,7 @@ Java 8 (minimum version)
 Maven 3.x
 Docker
 
-### Build and Run 
-
-    sh run.sh
-
-## API Endpoints and Docs
-
-Swagger Ui http://localhost:8080/swagger-ui.html
-
-## Securing API
+## To secure the API
 
 Few changed needed to enable security in [application.properties](web/src/main/resources/application.properties)
 
@@ -70,6 +62,15 @@ Populate client id and client secret from IDP
 
     spring.security.oauth2.client.registration.github.client-id=${GITHUB_CLIENT_ID}
     spring.security.oauth2.client.registration.github.client-secret=${GITHUB_CLIENT_SECRET}
+
+### Build and Run 
+
+    sh run.sh
+
+## API Endpoints and Docs
+
+Swagger Ui http://localhost:8080/swagger-ui.html
+
 
 ## Running Tests
 
