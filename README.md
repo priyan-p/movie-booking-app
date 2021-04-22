@@ -40,9 +40,9 @@ A movie booking app to handle concurrent users booking tickets at same time.
 
 ### Pre-requisites
 
-*Java 8 (minimum version)
-*Maven 3.x
-*Docker
+* Java 8 (minimum version)
+* Maven 3.x
+* Docker
 
 ## To secure the API
 
